@@ -1,1 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IMS Moving & Logistics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+:root{--bg:#E8EBEE;--surface:#fff;--ink:#16202E;--mute:#5B6676;--line:#CFD5DC;--brand:#1F4E79;--brand-ink:#fff;--tape:#F2B705;--bad:#B3321F;--side:#16202E;--side-ink:#DDE3EA}
+@media (prefers-color-scheme:dark){:root{--bg:#0E141C;--surface:#17202B;--ink:#E8EDF2;--mute:#97A3B2;--line:#2B3644;--brand:#5B9BD5;--brand-ink:#0E141C;--bad:#E8806F;--side:#0A0F15}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+h1,h2{font-family:"Barlow Condensed",Barlow,sans-serif;margin:0 0 8px}h1{font-size:30px}
+:focus-visible{outline:3px solid var(--tape);outline-offset:2px}
+.top{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--side);color:#fff;border-bottom:4px solid var(--tape)}
+.logo{font:700 22px "Barlow Condensed",sans-serif;flex:1}.logo small{display:block;font:400 12px Barlow;opacity:.8}
+.wrap{max-width:420px;margin:28px auto;padding:0 16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+label{display:block;font-weight:600;margin:12px 0 4px}
+input{width:100%;font:inherit;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-height:44px}
+button{font:inherit;cursor:pointer;min-height:44px;border-radius:8px;padding:10px 16px;border:0}
+.primary{width:100%;margin-top:16px;background:var(--brand);color:var(--brand-ink);font-weight:600}
+.ghost{background:none;border:1px solid #3A4757;color:#fff}
+.link{background:none;color:var(--brand);padding:6px 0;text-decoration:underline;min-height:44px}
+.msg{margin-top:12px;font-size:15px}.err{color:var(--bad)}
+nav{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;background:var(--side)}
+nav button{background:none;color:var(--side-ink);border:1px solid #3A4757}
+nav button[aria-current=page]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+main{max-width:900px;margin:0 auto;padding:16px}
+.mute{color:var(--mute)}.hide{display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SB_URL="https://ewjzepsbyzvdomjaxipy.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3anplcHNieXp2ZG9tamF4aXB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5Nzg4MTMsImV4cCI6MjEwNzU1NDgxM30.Sd1GeRJcadgJenODY84KpimgouuSuyNS-l-NPAtsJWs";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const MENUS={
+ owner:["Dashboard","Jobs","Schedule","Customers","Invoices","Contracts","Fleet & Staff","Contractor & Staff Pay","Settings"],
+ dispatcher:["Dashboard","Jobs","Schedule","Customers","Invoices","Contracts","Fleet & Staff"],
+ crew:["Dashboard","My Jobs","My Pay"],
+ customer:["Dashboard","My Move","My Inventory","Documents","Invoices"]};
+const ROLE_LABEL={owner:"Owner",dispatcher:"Dispatcher",crew:"Crew member",customer:"Customer"};
+const app=document.getElementById("app");
+let recovering=false;
+
+function el(h){const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstChild}
+function header(right){return `<header class="top"><div class="logo">IMS Moving &amp; Logistics<small>${right||""}</small></div></header>`}
+
+function showLogin(note,isErr){
+ app.innerHTML=header()+`<div class="wrap"><div class="card"><h1>Sign in</h1>
+ <form id="f"><label for="em">Email</label><input id="em" type="email" autocomplete="username" required>
+ <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required>
+ <button class="primary" type="submit">Sign in</button></form>
+ <button class="link" id="forgot" type="button">Forgot password?</button>
+ <div class="msg ${isErr?"err":""}" id="m" role="status"></div></div>
+ <p class="mute">Accounts are created by IMS staff. If you need access, contact the office.</p></div>`;
+ document.getElementById("m").textContent=note||"";
+ document.getElementById("f").onsubmit=async e=>{e.preventDefault();
+  const m=document.getElementById("m");m.className="msg";m.textContent="Signing in...";
+  const {error}=await sb.auth.signInWithPassword({email:em.value.trim(),password:pw.value});
+  if(error){m.className="msg err";m.textContent="Email or password is incorrect.";}
+ };
+ document.getElementById("forgot").onclick=async()=>{
+  const m=document.getElementById("m");
+  if(!em.value){m.className="msg err";m.textContent="Enter your email first.";return;}
+  await sb.auth.resetPasswordForEmail(em.value.trim(),{redirectTo:location.origin+location.pathname});
+  m.className="msg";m.textContent="If that email has an account, a reset link is on its way.";
+ };
+}
+
+function showNewPassword(){
+ app.innerHTML=header()+`<div class="wrap"><div class="card"><h1>Set a new password</h1>
+ <form id="f"><label for="np">New password (10+ characters)</label><input id="np" type="password" minlength="10" autocomplete="new-password" required>
+ <button class="primary" type="submit">Save password</button></form><div class="msg" id="m" role="status"></div></div></div>`;
+ document.getElementById("f").onsubmit=async e=>{e.preventDefault();
+  const {error}=await sb.auth.updateUser({password:np.value});
+  const m=document.getElementById("m");
+  if(error){m.className="msg err";m.textContent=error.message;return;}
+  recovering=false;await sb.auth.signOut();showLogin("Password updated. Please sign in.");
+ };
+}
+
+async function showConsole(session){
+ const {data:p,error}=await sb.from("profiles").select("full_name,email,role,active").eq("id",session.user.id).single();
+ if(error||!p||!p.active){await sb.auth.signOut();showLogin("Your account is not active. Please contact the office.",true);return;}
+ const menu=MENUS[p.role]||MENUS.customer;let page="Dashboard";
+ app.innerHTML=`<header class="top"><div class="logo">IMS Moving &amp; Logistics<small id="who"></small></div><button class="ghost" id="out">Sign out</button></header><nav id="nav" aria-label="Main menu"></nav><main id="main" tabindex="-1"></main>`;
+ document.getElementById("who").textContent=(p.full_name||p.email)+" · "+(ROLE_LABEL[p.role]||"Customer");
+ const draw=()=>{
+  document.getElementById("nav").innerHTML=menu.map(m=>`<button data-p="${m}" ${m===page?'aria-current="page"':""}>${m}</button>`).join("");
+  const main=document.getElementById("main");main.innerHTML="";
+  const h=document.createElement("h1");h.textContent=page==="Dashboard"?"Welcome, "+(p.full_name||"team"):page;main.appendChild(h);
+  const t=document.createElement("p");t.className="mute";
+  t.textContent=page==="Dashboard"?"You are signed in as "+ROLE_LABEL[p.role]+". Your menu shows only what your role can access.":"This page is built in a later module.";
+  main.appendChild(t);
+ };
+ document.getElementById("nav").onclick=e=>{const b=e.target.closest("button");if(b){page=b.dataset.p;draw();}};
+ document.getElementById("out").onclick=()=>sb.auth.signOut();
+ draw();
+}
+
+sb.auth.onAuthStateChange((event,session)=>{
+ if(event==="PASSWORD_RECOVERY"){recovering=true;showNewPassword();return;}
+ if(recovering)return;
+ if(session)showConsole(session);else showLogin();
+});
+</script>
+</body>
+</html>
 
